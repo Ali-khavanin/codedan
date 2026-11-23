@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
 # Idempotent Vast.ai bootstrap for GRP-SFT + PASC-GRPO (Qwen3-8B).
 #
-#   bash infra/setup_vast.sh
-#   bash infra/setup_vast.sh --model Qwen/Qwen3-8B-Base
-#   bash infra/setup_vast.sh --skip-download
-#   bash infra/setup_vast.sh --serve-vllm
+# From your laptop:
+#   bash infra/provision.sh --host IP --port PORT
 #
+# This file runs on the instance. provision.sh copies it there and starts it.
 # Safe to re-run. Package installs do not upgrade satisfied wheels, and the
 # model snapshot skips files already present in HF_HOME. GPU wheels are
 # replaced only when the installed PyTorch CUDA build cannot run this GPU.
 #
-# Works as a manual script and as a Vast.ai PROVISIONING_SCRIPT (non-interactive,
-# often running as root). See README.md for the template wiring.
+# See setup_guide.md.
 
 set -euo pipefail
 
