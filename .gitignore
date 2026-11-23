@@ -1,1 +1,5 @@
 .env
+# Raw benchmark downloads (multi-GB); re-fetch at the pinned revisions in datasets/revisions.json
+datasets/*/raw/
+.ipynb_checkpoints/
+__pycache__/
