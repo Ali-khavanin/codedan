@@ -251,11 +251,19 @@ def import_one(name: str) -> tuple[bool, str, list[str]]:
         )
     except subprocess.TimeoutExpired:
         return False, f"{name}: timed out after {IMPORT_TIMEOUT_S}s", []
-    blob = f"{proc.stderr}\n{proc.stdout}".lower()
-    hits = [marker for marker in ABI_MARKERS if marker in blob]
     stdout_lines = [clean(line) for line in proc.stdout.splitlines() if clean(line)]
     version = stdout_lines[-1] if stdout_lines else "unknown"
     notes = tail_lines(proc.stderr)
+    # vLLM probes optional multi-GPU modules (deep_ep) and logs the miss.
+    # That is not an ABI break in the package under test.
+    relevant = []
+    for line in (proc.stderr or "").splitlines():
+        low = line.lower()
+        if "deep_ep" in low or "was found but failed to import" in low:
+            continue
+        relevant.append(low)
+    blob = "\n".join(relevant)
+    hits = [marker for marker in ABI_MARKERS if marker in blob]
     if proc.returncode != 0:
         reason = notes[-1] if notes else f"exit {proc.returncode}"
         return False, f"{name}: {reason}", notes
