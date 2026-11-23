@@ -345,13 +345,13 @@ PY
 install_packages() {
   local -a packages=(
     vllm
-    unsloth
-    unsloth_zoo
+    "unsloth>=2026.11.9"
+    "unsloth_zoo>=2026.11.8"
     bitsandbytes
     trl
     peft
     accelerate
-    "transformers>=4.51.0"
+    "transformers>=4.51.0,<=5.17.0"
     datasets
     "huggingface_hub[hf_transfer]"
     networkx
@@ -424,8 +424,8 @@ PY
     fi
     # Freeze torch so unsloth / trl cannot swap in a CPU or mismatched cu wheel.
     if [[ "$pinned" -eq 1 ]] && uv_pip "${rest_flags[@]}" --constraint "$constraint" \
-      unsloth unsloth_zoo bitsandbytes trl peft accelerate \
-      "transformers>=4.51.0" datasets "huggingface_hub[hf_transfer]" \
+      "unsloth>=2026.11.9" "unsloth_zoo>=2026.11.8" bitsandbytes trl peft accelerate \
+      "transformers>=4.51.0,<=5.17.0" datasets "huggingface_hub[hf_transfer]" \
       networkx wandb ipykernel ipywidgets
     then
       rm -f "$constraint"
@@ -435,8 +435,8 @@ PY
         printf 'Constraint solve failed. Installing the training stack, then pinning torch again.\n'
       fi
       uv_pip "${rest_flags[@]}" \
-        unsloth unsloth_zoo bitsandbytes trl peft accelerate \
-        "transformers>=4.51.0" datasets "huggingface_hub[hf_transfer]" \
+        "unsloth>=2026.11.9" "unsloth_zoo>=2026.11.8" bitsandbytes trl peft accelerate \
+        "transformers>=4.51.0,<=5.17.0" datasets "huggingface_hub[hf_transfer]" \
         networkx wandb ipykernel ipywidgets
       uv_pip --reinstall-package torch --reinstall-package torchvision --reinstall-package torchaudio \
         torch torchvision torchaudio
