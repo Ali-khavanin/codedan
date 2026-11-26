@@ -242,64 +242,106 @@ THINK_RE = re.compile(r"<think>(.*?)</think>", re.S)
 ANSWER_RE = re.compile(r"<answer>(.*?)</answer>", re.S)
 
 
-def generate(llm, tokenizer, tasks: list[dict], k: int, decoding: dict, max_tokens: int, log) -> tuple[list[dict], float]:
-    """Generate k samples per task. Returns raw records and total wall-clock seconds.
+def generate(llm, tokenizer, tasks: list[dict], k: int, decoding: dict, max_tokens: int,
+             out_dir: Path, chunk_size: int, log) -> list[dict]:
+    """Generate k samples per task and save them to out_dir/raw_generations.jsonl.
 
     Each sample is its own request with seed = base_seed + sample_idx (the same
-    scheme vLLM uses internally for n>1), so per-sample latency is measurable.
+    scheme vLLM uses internally for n>1), so per-sample latency is measurable and a
+    resumed request keeps the seed it would have had without a stop.
+
+    Requests run in chunks of chunk_size. After every chunk its completions are
+    appended to raw_generations.partial.jsonl and the summed llm.generate time is
+    written to generation_wall_clock_sec.txt. A stopped run therefore loses at most
+    one chunk: the next call skips every (task_id, sample_idx) already saved.
     """
     from vllm import SamplingParams
 
-    prompts, params, keys = [], [], []
-    for task in tasks:
-        chat = tokenizer.apply_chat_template(
+    partial = out_dir / "raw_generations.partial.jsonl"
+    wall_file = out_dir / "generation_wall_clock_sec.txt"
+    done = {(r["task_id"], r["sample_idx"]): r for r in _read_partial(partial)}
+    wall = float(wall_file.read_text()) if done and wall_file.exists() else 0.0
+    write_jsonl(partial, list(done.values()))  # drops a last line torn by the stop
+
+    plan = [(task, i) for task in tasks for i in range(k)]
+    pending = [(task, i) for task, i in plan if (task["task_id"], i) not in done]
+    chats = {
+        task["task_id"]: tokenizer.apply_chat_template(
             [{"role": "user", "content": build_prompt(task)}], tokenize=False, add_generation_prompt=True
         ) + RESPONSE_PREFIX
-        for i in range(k):
-            prompts.append(chat)
-            params.append(
-                SamplingParams(
-                    temperature=decoding["temperature"],
-                    top_p=decoding["top_p"],
-                    seed=decoding["seed"] + i,
-                    max_tokens=max_tokens,
-                    stop=["</answer>"],
-                    include_stop_str_in_output=True,
-                )
-            )
-            keys.append((task, i))
-
-    log(f"generating {len(prompts)} completions ({len(tasks)} tasks x {k})")
-    start = time.perf_counter()
-    outputs = llm.generate(prompts, params, use_tqdm=True)
-    wall = time.perf_counter() - start
-    log(f"done in {wall:.0f}s")
+        for task in tasks
+    }
 
     def count(text: str | None) -> int:
         return len(tokenizer.encode(text, add_special_tokens=False)) if text else 0
 
-    records = []
-    for (task, i), out in zip(keys, outputs):
+    def record(task: dict, i: int, out) -> dict:
         comp = out.outputs[0]
         text = RESPONSE_PREFIX + comp.text
         think, answer = reasoning_text(text), ANSWER_RE.search(text)
         m = out.metrics
         latency = (m.last_token_ts - m.queued_ts) if m and m.last_token_ts and m.queued_ts else None
-        records.append(
-            {
-                "task_id": task["task_id"],
-                "difficulty": task["difficulty"],
-                "execution_mode": task["execution_mode"],
-                "sample_idx": i,
-                "raw_output": text,
-                "finish_reason": comp.finish_reason,
-                "reasoning_tokens": count(think),
-                "answer_tokens": count(answer and answer.group(1)),
-                "total_tokens": len(comp.token_ids),
-                "latency_sec": round(latency, 3) if latency is not None else None,
-            }
-        )
-    return records, wall
+        return {
+            "task_id": task["task_id"],
+            "difficulty": task["difficulty"],
+            "execution_mode": task["execution_mode"],
+            "sample_idx": i,
+            "raw_output": text,
+            "finish_reason": comp.finish_reason,
+            "reasoning_tokens": count(think),
+            "answer_tokens": count(answer and answer.group(1)),
+            "total_tokens": len(comp.token_ids),
+            "latency_sec": round(latency, 3) if latency is not None else None,
+        }
+
+    log(f"generating {len(pending)} of {len(plan)} completions ({len(tasks)} tasks x {k}), "
+        f"{len(done)} already saved")
+    for start in range(0, len(pending), chunk_size):
+        chunk = pending[start:start + chunk_size]
+        params = [
+            SamplingParams(
+                temperature=decoding["temperature"],
+                top_p=decoding["top_p"],
+                seed=decoding["seed"] + i,
+                max_tokens=max_tokens,
+                stop=["</answer>"],
+                include_stop_str_in_output=True,
+            )
+            for _, i in chunk
+        ]
+        t0 = time.perf_counter()
+        outputs = llm.generate([chats[task["task_id"]] for task, _ in chunk], params, use_tqdm=True)
+        wall += time.perf_counter() - t0
+        records = [record(task, i, out) for (task, i), out in zip(chunk, outputs)]
+        with open(partial, "a") as f:
+            f.writelines(json.dumps(r, ensure_ascii=False) + "\n" for r in records)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp = wall_file.with_suffix(".tmp")
+        tmp.write_text(f"{wall:.1f}\n")
+        tmp.replace(wall_file)
+        done.update(((r["task_id"], r["sample_idx"]), r) for r in records)
+        log(f"saved {len(done)}/{len(plan)} completions ({wall:.0f}s of generation so far)")
+
+    records = [done[(task["task_id"], i)] for task, i in plan]
+    write_jsonl(out_dir / "raw_generations.jsonl", records)
+    partial.unlink()
+    return records
+
+
+def _read_partial(path: Path) -> list[dict]:
+    """Records saved by an earlier generate call; a last line torn by a stop is dropped."""
+    if not path.exists():
+        return []
+    lines = path.read_text().splitlines()
+    rows = []
+    for n, line in enumerate(lines):
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            if n != len(lines) - 1:
+                raise
+    return rows
 
 
 def reasoning_text(raw: str) -> str:

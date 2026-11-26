@@ -3,3 +3,9 @@
 datasets/*/raw/
 .ipynb_checkpoints/
 __pycache__/
+# Run logs, executed notebooks, and large per-sample JSONL dumps (kept locally, not in git)
+*.log
+*_executed.ipynb
+raw_generations.jsonl
+raw_generations.partial.jsonl
+eval_results.jsonl

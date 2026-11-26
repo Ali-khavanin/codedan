@@ -1,0 +1,14 @@
+{
+  "mbpp": {
+    "repo": "google-research-datasets/mbpp",
+    "revision": "4bb6404fdc6cacfda99d4ac4205087b89d32030c"
+  },
+  "mbpp_plus": {
+    "repo": "evalplus/mbppplus",
+    "revision": "b2d74c91837c3f2a20c1299ae98133cbe7cfa077"
+  },
+  "livecodebench_v5": {
+    "repo": "livecodebench/code_generation_lite",
+    "revision": "0fe84c3912ea0c4d4a78037083943e8f0c4dd505"
+  }
+}

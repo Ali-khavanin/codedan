@@ -1,0 +1,58 @@
+{
+  "run_id": "qwen3-8b-base-fp8_v1",
+  "model_id": "Qwen/Qwen3-8B-Base",
+  "model_revision": "49e3418fbbbca6ecbdf9608b4d22e5a407081db4",
+  "precision": "fp8 weights and activations (vLLM quantization='fp8', dynamic scales); bfloat16 dtype and KV cache",
+  "benchmarks": {
+    "mbpp": {
+      "k": 16,
+      "max_completion_tokens": 8192,
+      "num_tasks": 100,
+      "sampling": "uniform",
+      "dataset_repo": "google-research-datasets/mbpp",
+      "dataset_revision": "4bb6404fdc6cacfda99d4ac4205087b89d32030c",
+      "grading_timeout_sec": 10
+    },
+    "mbpp_plus": {
+      "k": 16,
+      "max_completion_tokens": 8192,
+      "num_tasks": 100,
+      "sampling": "uniform",
+      "dataset_repo": "evalplus/mbppplus",
+      "dataset_revision": "b2d74c91837c3f2a20c1299ae98133cbe7cfa077",
+      "grading_timeout_sec": 30
+    },
+    "livecodebench_v5": {
+      "k": 3,
+      "max_completion_tokens": 8192,
+      "num_tasks": 100,
+      "sampling": "stratified",
+      "dataset_repo": "livecodebench/code_generation_lite",
+      "dataset_revision": "0fe84c3912ea0c4d4a78037083943e8f0c4dd505",
+      "grading_timeout_sec": 6
+    }
+  },
+  "sample_seed": 42,
+  "decoding": {
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "seed": 42,
+    "seed_scheme": "seed + sample_idx per request",
+    "stop": [
+      "</answer>"
+    ]
+  },
+  "prompt_templates_sha256": {
+    "function_completion": "a12599ee61144e812dc1f755b9d546a97a27396f0f979f4d025e347401575cb3",
+    "online_judge_stdin": "9157e12d5276527dc75fad9bb6cb914573388fc25effb3926879ec1a9714dd6a",
+    "response_prefix": "9ebc01769b176bb074a065ea0974c130fc8afd12814360aaf809046160b2a999"
+  },
+  "prompt_format": "tokenizer chat template, single user turn with a one-shot format example; assistant turn prefilled with response_prefix",
+  "response_prefix": "<think>\n",
+  "scoring": "primary: code only from <answer>; secondary avg_at_k_fallback also accepts the last fenced code block",
+  "reasoning_tokens_rule": "text after response_prefix up to </think>; else up to <answer>; else to the end",
+  "hardware": "NVIDIA GeForce RTX 4090, 49140 MiB",
+  "vllm_version": "0.32.0",
+  "python_version": "3.12.3",
+  "created_at": "2026-11-26T06:57:08+00:00"
+}

@@ -2,7 +2,7 @@
 
 Both directories use the same layout: <run_dir>/<benchmark>/summary.json.
 
-    python baseline/compare_runs.py baseline/results/qwen3-8b-base_v1 runs/<experiment>
+    python baseline/compare_runs.py baseline/results/qwen3-8b-base-fp8_v1 runs/<experiment>
 """
 
 from __future__ import annotations

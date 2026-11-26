@@ -1,0 +1,21 @@
+{
+  "run_id": "qwen3-8b-base-fp8_v1",
+  "benchmark": "mbpp_plus",
+  "num_tasks": 100,
+  "samples_per_task": 16,
+  "metrics": {
+    "avg_at_16": 0.2719,
+    "pass_at_1": 0.2719,
+    "avg_at_16_fallback": 0.3762,
+    "format_compliance_rate": 0.0,
+    "syntax_error_rate": 0.0702,
+    "truncation_rate": 0.2938,
+    "mean_reasoning_tokens": 2277.0,
+    "mean_answer_tokens": 26.3,
+    "mean_total_tokens": 2600.8,
+    "tokens_per_correct_solution": 9566.3,
+    "mean_latency_sec": 127.555,
+    "total_wall_clock_sec": 4072.4,
+    "tokens_per_sec": 1021.8
+  }
+}
